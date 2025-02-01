@@ -28,7 +28,8 @@ export default function LoginPage() {
 
       router.push("/")
       router.refresh()
-    } catch (error) {
+    } catch (err) {
+      console.error("Login error:", err)
       setError("An error occurred")
     }
   }
