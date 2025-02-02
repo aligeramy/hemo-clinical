@@ -1,8 +1,17 @@
-import { getServerSession } from "next-auth"
 import { PrismaClient } from '@prisma/client'
 import { NextResponse } from 'next/server'
+import { getServerSession } from "next-auth"
 
-const prisma = new PrismaClient()
+// Add proper singleton pattern for PrismaClient
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
+
+const prisma = globalForPrisma.prisma ?? new PrismaClient({
+  datasourceUrl: process.env.DATABASE_URL_POOL,
+})
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 export async function GET() {
   const session = await getServerSession()

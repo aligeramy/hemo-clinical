@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth.config";
 import { SessionProvider } from "@/components/session-provider";
 import { Header } from "@/components/header";
 
@@ -48,7 +49,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const session = await getServerSession()
+  const session = await getServerSession(authOptions)
 
   return (
     <html lang="en">

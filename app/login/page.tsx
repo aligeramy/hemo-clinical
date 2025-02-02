@@ -1,14 +1,21 @@
 "use client"
 
-import { useState } from "react"
-import { signIn } from "next-auth/react"
+import { useState, useEffect } from "react"
+import { signIn, useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 export default function LoginPage() {
   const router = useRouter()
+  const { status } = useSession()
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.push("/")
+    }
+  }, [status, router])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -21,16 +28,19 @@ export default function LoginPage() {
         redirect: false,
       })
 
+      console.log('SignIn response:', res)
+
       if (res?.error) {
         setError("Invalid credentials")
         return
       }
 
-      router.push("/")
-      router.refresh()
+      if (res?.ok) {
+        router.refresh()
+      }
     } catch (err) {
       console.error("Login error:", err)
-      setError("An error occurred")
+      setError("An unexpected error occurred")
     }
   }
 

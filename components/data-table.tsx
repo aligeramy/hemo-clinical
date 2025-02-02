@@ -3,15 +3,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "./ui/button"
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
 import { ColumnDef } from "@tanstack/react-table"
-import { useState, useMemo, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AlertCircle, Stethoscope } from "lucide-react"
+import { AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   useReactTable,
   getCoreRowModel,
-  getSortedRowModel,
-  SortingState,
   flexRender,
 } from "@tanstack/react-table"
 
@@ -30,264 +28,198 @@ export function DataTable<TData>({
   error,
   onRowClick,
 }: DataTableProps<TData>) {
-  // Helper functions first
-  const renderHeader = (column: ColumnDef<TData, any>) => {
-    if (typeof column.header === 'function') {
-      return column.header({
-        column: column as any,
-        header: column as any,
-        table: {
-          getCoreRowModel: () => ({ rows: [] }),
-          getFilteredRowModel: () => ({ rows: [] }),
-          getGroupedRowModel: () => ({ rows: [] }),
-          getPaginationRowModel: () => ({ rows: [] }),
-          getSortedRowModel: () => ({ rows: [] }),
-          options: { data: [] },
-          setOptions: () => {},
-          reset: () => {},
-          getState: () => ({}),
-          setState: () => {},
-        } as any,
-      })
-    }
-    return column.header as string
-  }
-
-  // State and other hooks
   const [currentPage, setCurrentPage] = useState(1)
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
-  const [sorting, setSorting] = useState<SortingState>([
-    { id: "Study Date", desc: true }
-  ])
-
-  const itemsPerPage = 10
+  const [selectedRow, setSelectedRow] = useState<TData | null>(null)
+  const pageSize = 10
 
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    onSortingChange: setSorting,
-    state: {
-      sorting,
-    },
   })
 
-  // Fix useMemo dependencies
-  const paginatedRows = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage
-    return table.getRowModel().rows.slice(start, start + itemsPerPage)
-  }, [currentPage, itemsPerPage, table])
+  const totalPages = Math.ceil(data.length / pageSize)
+  const start = (currentPage - 1) * pageSize
+  const end = start + pageSize
+  const currentData = data.slice(start, end)
 
-  const totalPages = Math.ceil(table.getRowModel().rows.length / itemsPerPage)
-
-  const handleRowClick = useCallback((row: TData, index: number) => {
-    setSelectedIndex(index)
-    onRowClick(row)
-  }, [onRowClick])
-
-  // Handle keyboard navigation
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (selectedIndex === null && e.key.startsWith('Arrow')) {
-        setSelectedIndex(0)
-        onRowClick(data[0])
-        return
-      }
+    setCurrentPage(1)
+    setSelectedRow(null)
+  }, [data])
 
-      switch (e.key) {
-        case 'ArrowUp':
-          e.preventDefault()
-          if (selectedIndex! > 0) {
-            const newIndex = selectedIndex! - 1
-            setSelectedIndex(newIndex)
-            onRowClick(data[newIndex])
-          } else if (currentPage > 1) {
-            setCurrentPage(prev => prev - 1)
-            setSelectedIndex(itemsPerPage - 1)
-          }
-          break
-          
-        case 'ArrowDown':
-          e.preventDefault()
-          if (selectedIndex! < data.length - 1) {
-            const newIndex = selectedIndex! + 1
-            setSelectedIndex(newIndex)
-            onRowClick(data[newIndex])
-          } else if (currentPage < totalPages) {
-            setCurrentPage(prev => prev + 1)
-            setSelectedIndex(0)
-          }
-          break
-          
-        case 'ArrowLeft':
-          if (currentPage > 1) {
-            setCurrentPage(prev => prev - 1)
-            setSelectedIndex(null)
-          }
-          break
-          
-        case 'ArrowRight':
-          if (currentPage < totalPages) {
-            setCurrentPage(prev => prev + 1)
-            setSelectedIndex(null)
-          }
-          break
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [currentPage, totalPages, data, selectedIndex, onRowClick, itemsPerPage])
-
-  if (isLoading) return (
-    <div className="rounded-md shadow-lg ring-1 ring-white/10 overflow-hidden bg-background/80 backdrop-blur-lg text-sm">
-      <Table>
-        <TableHeader className="text-md">
-          <TableRow className="bg-muted overflow-hidden hover:bg-transparent">
-            {columns.map((column) => (
-              <TableHead 
-                key={column.id}
-                className="font-medium text-muted-foreground [&:first-child]:pl-8"
-              >
-                {renderHeader(column)}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {[...Array(10)].map((_, i) => (
-            <TableRow key={i}>
-              {columns.map((column, j) => (
-                <TableCell 
-                  key={`${i}-${j}`}
-                  className="[&:first-child]:pl-8"
-                >
-                  <Skeleton className="h-4 w-[80%]" />
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  )
-  
-  if (error) return (
-    <div className="p-6 text-center space-y-4">
-      <AlertCircle className="h-8 w-8 mx-auto text-red-500" />
-      <p className="text-red-500 text-sm">{error.message}</p>
-    </div>
-  )
-
-  if (!data?.length) return (
-    <div className="p-6 text-center space-y-4">
-      <Stethoscope className="h-8 w-8 mx-auto text-muted-foreground" />
-      <p className="text-muted-foreground text-sm">No studies found</p>
-    </div>
-  )
+  if (error) {
+    return (
+      <div className="flex items-center justify-center p-8 text-muted-foreground">
+        <AlertCircle className="mr-2 h-4 w-4" />
+        <span>Error loading data</span>
+      </div>
+    )
+  }
 
   return (
-    <div className="rounded-md shadow-lg ring-1 ring-white/10 overflow-hidden bg-background/80 backdrop-blur-lg text-sm">
-      <Table>
-        <TableHeader className="text-md">
-          <TableRow className="bg-muted overflow-hidden hover:bg-transparent">
+    <div className="space-y-2">
+      <div className="rounded-md bg-background p-3">
+        <Table>
+          <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              headerGroup.headers.map((header) => (
-                <TableHead 
-                  key={header.id}
-                  className="font-medium text-muted-foreground [&:first-child]:pl-8"
-                >
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                </TableHead>
-              ))
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => {
+                  return (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
+                  )
+                })}
+              </TableRow>
             ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {paginatedRows.map((row, index) => (
-            <TableRow 
-              key={row.id} 
-              onClick={() => handleRowClick(row.original, index)}
-              className={cn(
-                "cursor-pointer transition-all text-[13px]",
-                selectedIndex === index 
-                  ? "bg-black text-white hover:bg-black/80" 
-                  : "hover:bg-neutral-100/50 dark:hover:bg-neutral-800/50",
-                "[&:last-child]:border-b-0"
-              )}
-            >
-              {row.getVisibleCells().map((cell) => (
-                <TableCell 
-                  key={cell.id}
-                  className="[&:first-child]:pl-8"
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              Array.from({ length: pageSize }).map((_, index) => (
+                <TableRow key={index}>
+                  {columns.map((_, colIndex) => (
+                    <TableCell key={colIndex}>
+                      <Skeleton className="h-4 w-[80px]" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : currentData.length ? (
+              currentData.map((row, index) => {
+                const isSelected = JSON.stringify(row) === JSON.stringify(selectedRow)
+                return (
+                  <TableRow
+                    key={index}
+                    onClick={() => {
+                      setSelectedRow(row)
+                      onRowClick(row)
+                    }}
+                    className={cn(
+                      "cursor-pointer transition-colors",
+                      isSelected 
+                        ? "bg-black hover:bg-black/90" 
+                        : "hover:bg-muted/50",
+                    )}
+                  >
+                    {table
+                      .getRowModel()
+                      .rows[start + index]
+                      .getVisibleCells()
+                      .map((cell) => (
+                        <TableCell 
+                          key={cell.id}
+                          className={cn(
+                            isSelected && "text-white"
+                          )}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                  </TableRow>
+                )
+              })
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
                 >
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  No results.
                 </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      
-      <div className="flex items-center justify-between text-xs px-8 py-1 border-t">
-        <div className="text-muted-foreground">
-          Page {currentPage} of {totalPages}
-        </div>
-        <div className="flex items-center space-x-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setCurrentPage(1)
-              setSelectedIndex(null)
-            }}
-            disabled={currentPage === 1}
-            className="rounded-lg"
-          >
-            <ChevronsLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setCurrentPage(prev => Math.max(1, prev - 1))
-              setSelectedIndex(null)
-            }}
-            disabled={currentPage === 1}
-            className="rounded-lg"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setCurrentPage(prev => Math.min(totalPages, prev + 1))
-              setSelectedIndex(null)
-            }}
-            disabled={currentPage === totalPages}
-            className="rounded-lg"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setCurrentPage(totalPages)
-              setSelectedIndex(null)
-            }}
-            disabled={currentPage === totalPages}
-            className="rounded-lg"
-          >
-            <ChevronsRight className="h-4 w-4" />
-          </Button>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+        
+        <div className="flex items-center justify-between px-6 py-3 border-t -mb-2">
+          <div className="flex items-center gap-1.5 text-sm">
+            <span className="text-muted-foreground">Page</span>
+            <span className="font-medium">{currentPage}</span>
+            <span className="text-muted-foreground">of</span>
+            <span className="font-medium">{totalPages}</span>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setCurrentPage(1)
+                setSelectedRow(null)
+              }}
+              disabled={currentPage === 1}
+              className="h-8 w-8 p-0 hover:bg-muted"
+              title="First page"
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setCurrentPage(prev => Math.max(1, prev - 1))
+                setSelectedRow(null)
+              }}
+              disabled={currentPage === 1}
+              className="h-8 w-8 p-0 hover:bg-muted"
+              title="Previous page"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+
+            <div className="flex items-center gap-1 px-2 min-w-[5rem] justify-center">
+              <input
+                type="number"
+                min={1}
+                max={totalPages}
+                value={currentPage}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value)
+                  if (value >= 1 && value <= totalPages) {
+                    setCurrentPage(value)
+                    setSelectedRow(null)
+                  }
+                }}
+                className="w-12 h-8 rounded-md border border-input bg-transparent px-2 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setCurrentPage(prev => Math.min(totalPages, prev + 1))
+                setSelectedRow(null)
+              }}
+              disabled={currentPage === totalPages}
+              className="h-8 w-8 p-0 hover:bg-muted"
+              title="Next page"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setCurrentPage(totalPages)
+                setSelectedRow(null)
+              }}
+              disabled={currentPage === totalPages}
+              className="h-8 w-8 p-0 hover:bg-muted"
+              title="Last page"
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
