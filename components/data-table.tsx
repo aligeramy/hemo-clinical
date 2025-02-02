@@ -3,10 +3,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "./ui/button"
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
 import { ColumnDef } from "@tanstack/react-table"
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AlertCircle, Stethoscope } from "lucide-react"
 import { cn } from "@/lib/utils"
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  SortingState,
+  flexRender,
+} from "@tanstack/react-table"
 
 interface DataTableProps<TData> {
   columns: ColumnDef<TData, any>[]
@@ -23,108 +30,7 @@ export function DataTable<TData>({
   error,
   onRowClick,
 }: DataTableProps<TData>) {
-  const [currentPage, setCurrentPage] = useState(1)
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
-  const itemsPerPage = 10
-  const totalPages = Math.ceil(data.length / itemsPerPage)
-  
-  const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage
-    return data.slice(start, start + itemsPerPage)
-  }, [data, currentPage])
-
-  // Handle keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      switch (e.key) {
-        case 'ArrowUp':
-          e.preventDefault()
-          setSelectedIndex(prev => {
-            const newIndex = Math.max(0, prev as number - 1)
-            if (newIndex < 0 && currentPage > 1) {
-              setCurrentPage(prev => prev - 1)
-              return itemsPerPage - 1
-            }
-            return newIndex
-          })
-          break
-          
-        case 'ArrowDown':
-          e.preventDefault()
-          setSelectedIndex(prev => {
-            const newIndex = Math.min(paginatedData.length - 1, prev as number + 1)
-            if (newIndex >= itemsPerPage && currentPage < totalPages) {
-              setCurrentPage(prev => prev + 1)
-              return 0
-            }
-            return newIndex
-          })
-          break
-          
-        case 'ArrowLeft':
-          if (currentPage > 1) {
-            setCurrentPage(prev => prev - 1)
-            setSelectedIndex(null)
-          }
-          break
-          
-        case 'ArrowRight':
-          if (currentPage < totalPages) {
-            setCurrentPage(prev => prev + 1)
-            setSelectedIndex(null)
-          }
-          break
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [currentPage, totalPages, paginatedData.length, itemsPerPage])
-
-  // Update selected row when index changes
-  useEffect(() => {
-    if (paginatedData[selectedIndex as number]) {
-      onRowClick(paginatedData[selectedIndex as number])
-    }
-  }, [selectedIndex, paginatedData, onRowClick])
-
-  if (isLoading) return (
-    <div className="space-y-4 p-6">
-      {[...Array(10)].map((_, i) => (
-        <Skeleton key={i} className="h-[42px] w-full rounded-lg" />
-      ))}
-    </div>
-  )
-  
-  if (error) return (
-    <div className="p-6 text-center space-y-4">
-      <AlertCircle className="h-8 w-8 mx-auto text-red-500" />
-      <p className="text-red-500 text-sm">{error.message}</p>
-    </div>
-  )
-
-  if (!data?.length) return (
-    <div className="p-6 text-center space-y-4">
-      <Stethoscope className="h-8 w-8 mx-auto text-muted-foreground" />
-      <p className="text-muted-foreground text-sm">No studies found</p>
-    </div>
-  )
-
-  const getCellContent = (column: ColumnDef<TData, any>, rowData: TData) => {
-    if (typeof column.cell === 'function') {
-      return column.cell({
-        row: {
-          getValue: (key: string) => (rowData as any)[key],
-          original: rowData,
-        },
-        getValue: () => (rowData as any)[(column as any).accessorKey],
-        renderValue: () => (rowData as any)[(column as any).accessorKey],
-      } as any)
-    }
-
-    return (rowData as any)[(column as any).accessorKey]
-  }
-
+  // Helper functions first
   const renderHeader = (column: ColumnDef<TData, any>) => {
     if (typeof column.header === 'function') {
       return column.header({
@@ -147,10 +53,97 @@ export function DataTable<TData>({
     return column.header as string
   }
 
-  return (
-    <div className="rounded-md shadow-lg ring-1  ring-white/10 overflow-hidden bg-background/80 backdrop-blur-lg text-sm">
+  // State and other hooks
+  const [currentPage, setCurrentPage] = useState(1)
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "Study Date", desc: true }
+  ])
+
+  const itemsPerPage = 10
+
+  const table = useReactTable({
+    data,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
+    state: {
+      sorting,
+    },
+  })
+
+  // Fix useMemo dependencies
+  const paginatedRows = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage
+    return table.getRowModel().rows.slice(start, start + itemsPerPage)
+  }, [currentPage, itemsPerPage, table])
+
+  const totalPages = Math.ceil(table.getRowModel().rows.length / itemsPerPage)
+
+  const handleRowClick = useCallback((row: TData, index: number) => {
+    setSelectedIndex(index)
+    onRowClick(row)
+  }, [onRowClick])
+
+  // Handle keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (selectedIndex === null && e.key.startsWith('Arrow')) {
+        setSelectedIndex(0)
+        onRowClick(data[0])
+        return
+      }
+
+      switch (e.key) {
+        case 'ArrowUp':
+          e.preventDefault()
+          if (selectedIndex! > 0) {
+            const newIndex = selectedIndex! - 1
+            setSelectedIndex(newIndex)
+            onRowClick(data[newIndex])
+          } else if (currentPage > 1) {
+            setCurrentPage(prev => prev - 1)
+            setSelectedIndex(itemsPerPage - 1)
+          }
+          break
+          
+        case 'ArrowDown':
+          e.preventDefault()
+          if (selectedIndex! < data.length - 1) {
+            const newIndex = selectedIndex! + 1
+            setSelectedIndex(newIndex)
+            onRowClick(data[newIndex])
+          } else if (currentPage < totalPages) {
+            setCurrentPage(prev => prev + 1)
+            setSelectedIndex(0)
+          }
+          break
+          
+        case 'ArrowLeft':
+          if (currentPage > 1) {
+            setCurrentPage(prev => prev - 1)
+            setSelectedIndex(null)
+          }
+          break
+          
+        case 'ArrowRight':
+          if (currentPage < totalPages) {
+            setCurrentPage(prev => prev + 1)
+            setSelectedIndex(null)
+          }
+          break
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [currentPage, totalPages, data, selectedIndex, onRowClick, itemsPerPage])
+
+  if (isLoading) return (
+    <div className="rounded-md shadow-lg ring-1 ring-white/10 overflow-hidden bg-background/80 backdrop-blur-lg text-sm">
       <Table>
-        <TableHeader className="text-md ">
+        <TableHeader className="text-md">
           <TableRow className="bg-muted overflow-hidden hover:bg-transparent">
             {columns.map((column) => (
               <TableHead 
@@ -163,13 +156,64 @@ export function DataTable<TData>({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {paginatedData.map((row, index) => (
+          {[...Array(10)].map((_, i) => (
+            <TableRow key={i}>
+              {columns.map((column, j) => (
+                <TableCell 
+                  key={`${i}-${j}`}
+                  className="[&:first-child]:pl-8"
+                >
+                  <Skeleton className="h-4 w-[80%]" />
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  )
+  
+  if (error) return (
+    <div className="p-6 text-center space-y-4">
+      <AlertCircle className="h-8 w-8 mx-auto text-red-500" />
+      <p className="text-red-500 text-sm">{error.message}</p>
+    </div>
+  )
+
+  if (!data?.length) return (
+    <div className="p-6 text-center space-y-4">
+      <Stethoscope className="h-8 w-8 mx-auto text-muted-foreground" />
+      <p className="text-muted-foreground text-sm">No studies found</p>
+    </div>
+  )
+
+  return (
+    <div className="rounded-md shadow-lg ring-1 ring-white/10 overflow-hidden bg-background/80 backdrop-blur-lg text-sm">
+      <Table>
+        <TableHeader className="text-md">
+          <TableRow className="bg-muted overflow-hidden hover:bg-transparent">
+            {table.getHeaderGroups().map((headerGroup) => (
+              headerGroup.headers.map((header) => (
+                <TableHead 
+                  key={header.id}
+                  className="font-medium text-muted-foreground [&:first-child]:pl-8"
+                >
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                </TableHead>
+              ))
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {paginatedRows.map((row, index) => (
             <TableRow 
-              key={index} 
-              onClick={() => {
-                setSelectedIndex(index)
-                onRowClick(row)
-              }}
+              key={row.id} 
+              onClick={() => handleRowClick(row.original, index)}
               className={cn(
                 "cursor-pointer transition-all text-[13px]",
                 selectedIndex === index 
@@ -178,12 +222,12 @@ export function DataTable<TData>({
                 "[&:last-child]:border-b-0"
               )}
             >
-              {columns.map((column) => (
+              {row.getVisibleCells().map((cell) => (
                 <TableCell 
-                  key={column.id}
+                  key={cell.id}
                   className="[&:first-child]:pl-8"
                 >
-                  {getCellContent(column, row)}
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>
               ))}
             </TableRow>

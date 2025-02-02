@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { SearchBar } from "@/components/search-bar"
 import { DataTable } from "@/components/data-table"
 import { Sidebar } from "@/components/sidebar"
@@ -13,16 +13,22 @@ export function PatientDataLookup() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedPatient, setSelectedPatient] = useState<PatientData | null>(null)
 
-  const filteredData = data?.filter((patient) =>
-    Object.values(patient).some((value) => 
-      String(value).toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredData = useMemo(() => {
+    return data?.filter((patient: PatientData) =>
+      Object.values(patient).some((value) => 
+        String(value).toLowerCase().includes(searchTerm.toLowerCase())
+      )
     )
-  )
+  }, [data, searchTerm])
 
-  const handleSearch = (value: string) => {
+  const handleSearch = useCallback((value: string) => {
     setSearchTerm(value)
     setSelectedPatient(null)
-  }
+  }, [])
+
+  const handleRowClick = useCallback((patient: PatientData) => {
+    setSelectedPatient(patient)
+  }, [])
 
   return (
     <div className="flex gap-4 p-6 pb-0">
@@ -37,7 +43,7 @@ export function PatientDataLookup() {
             data={filteredData || []}
             isLoading={isLoading}
             error={error}
-            onRowClick={setSelectedPatient}
+            onRowClick={handleRowClick}
           />
         </div>
       </div>

@@ -4,7 +4,7 @@ import type { PatientData } from "@/types/patient-data"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
 import { Button } from "./ui/button"
-import { ArrowLeftFromLine, ArrowRightFromLine, ChevronLeft } from "lucide-react"
+import { ArrowLeftFromLine, ArrowRightFromLine } from "lucide-react"
 
 interface SidebarProps {
   patient: PatientData | null

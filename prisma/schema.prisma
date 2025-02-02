@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_URL_NON_POOLING")
+}
+
+model PatientStudy {
+  id                String   @id @default(uuid())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Encrypted fields
+  patientName       String   // Will store encrypted data
+  patientId         String   // Will store encrypted data
+  patientBirthDate  String   // Will store encrypted data
+  accessionNumber   String   // Will store encrypted data
+  studyInstanceUid  String   // Will store encrypted data
+  seriesInstanceUid String   // Will store encrypted data
+  sopInstanceUid    String   // Will store encrypted data
+
+  // Non-sensitive fields (no encryption needed)
+  studyDate         DateTime
+  studyTime         String
+  modality          String
+  bodyPart          String
+  institutionName   String
+  manufacturer      String
+  studyDescription  String
+  seriesNumber      String
+  sliceThickness    String?
+  imageType         String?
+  instanceNumber    Int?
+  kvp               String?
+  pixelSpacing      String?
+  protocolName      String
+  patientSex        String
+  patientAge        String?
+  patientWeight     String?
+
+  studyId            String
+  seriesDescription  String
+
+  @@index([patientId])
+  @@index([studyDate])
+  @@index([modality])
+} 

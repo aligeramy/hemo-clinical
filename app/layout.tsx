@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { getServerSession } from "next-auth";
@@ -16,6 +16,15 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "white" },
+    { media: "(prefers-color-scheme: dark)", color: "black" }
+  ],
+}
+
 export const metadata: Metadata = {
   title: "Medical Imaging Archive",
   description: "A secure platform for accessing and managing medical imaging studies and patient data",
@@ -31,14 +40,6 @@ export const metadata: Metadata = {
     {
       name: "Hospital Radiology Department",
     }
-  ],
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-  },
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "white" },
-    { media: "(prefers-color-scheme: dark)", color: "black" }
   ],
 };
 
