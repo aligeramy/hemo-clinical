@@ -19,6 +19,7 @@ interface DataTableProps<TData> {
   isLoading: boolean
   error: Error | null
   onRowClick: (row: TData) => void
+  selectedPatient?: TData | null
 }
 
 export function DataTable<TData>({
@@ -27,9 +28,9 @@ export function DataTable<TData>({
   isLoading,
   error,
   onRowClick,
+  selectedPatient,
 }: DataTableProps<TData>) {
   const [currentPage, setCurrentPage] = useState(1)
-  const [selectedRow, setSelectedRow] = useState<TData | null>(null)
   const pageSize = 10
 
   const table = useReactTable({
@@ -45,7 +46,6 @@ export function DataTable<TData>({
 
   useEffect(() => {
     setCurrentPage(1)
-    setSelectedRow(null)
   }, [data])
 
   if (error) {
@@ -92,18 +92,17 @@ export function DataTable<TData>({
               ))
             ) : currentData.length ? (
               currentData.map((row, index) => {
-                const isSelected = JSON.stringify(row) === JSON.stringify(selectedRow)
+                const isSelected = JSON.stringify(row) === JSON.stringify(data.find(d => 
+                  JSON.stringify(d) === JSON.stringify(selectedPatient)
+                ))
                 return (
                   <TableRow
                     key={index}
-                    onClick={() => {
-                      setSelectedRow(row)
-                      onRowClick(row)
-                    }}
+                    onClick={() => onRowClick(row)}
                     className={cn(
                       "cursor-pointer transition-colors",
                       isSelected 
-                        ? "bg-black hover:bg-black/90" 
+                        ? "!bg-black hover:!bg-black focus:!bg-black" 
                         : "hover:bg-muted/50",
                     )}
                   >
@@ -115,7 +114,8 @@ export function DataTable<TData>({
                         <TableCell 
                           key={cell.id}
                           className={cn(
-                            isSelected && "text-white"
+                            "transition-colors",
+                            isSelected && "!text-white"
                           )}
                         >
                           {flexRender(
@@ -154,7 +154,6 @@ export function DataTable<TData>({
               size="sm"
               onClick={() => {
                 setCurrentPage(1)
-                setSelectedRow(null)
               }}
               disabled={currentPage === 1}
               className="h-8 w-8 p-0 hover:bg-muted"
@@ -167,7 +166,6 @@ export function DataTable<TData>({
               size="sm"
               onClick={() => {
                 setCurrentPage(prev => Math.max(1, prev - 1))
-                setSelectedRow(null)
               }}
               disabled={currentPage === 1}
               className="h-8 w-8 p-0 hover:bg-muted"
@@ -186,7 +184,6 @@ export function DataTable<TData>({
                   const value = parseInt(e.target.value)
                   if (value >= 1 && value <= totalPages) {
                     setCurrentPage(value)
-                    setSelectedRow(null)
                   }
                 }}
                 className="w-12 h-8 rounded-md border border-input bg-transparent px-2 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring"
@@ -198,7 +195,6 @@ export function DataTable<TData>({
               size="sm"
               onClick={() => {
                 setCurrentPage(prev => Math.min(totalPages, prev + 1))
-                setSelectedRow(null)
               }}
               disabled={currentPage === totalPages}
               className="h-8 w-8 p-0 hover:bg-muted"
@@ -211,7 +207,6 @@ export function DataTable<TData>({
               size="sm"
               onClick={() => {
                 setCurrentPage(totalPages)
-                setSelectedRow(null)
               }}
               disabled={currentPage === totalPages}
               className="h-8 w-8 p-0 hover:bg-muted"

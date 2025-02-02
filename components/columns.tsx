@@ -11,17 +11,9 @@ const formatDate = (dateStr: string) => {
   if (!dateStr) return ''
   
   try {
-    // Check if it's in YYYYMMDD format (from CSV)
-    if (dateStr.match(/^\d{8}$/)) {
-      return `${dateStr.slice(0,4)}/${dateStr.slice(4,6)}/${dateStr.slice(6,8)}`
-    }
-    
-    // If it's an ISO date string
-    if (dateStr.includes('T') || dateStr.includes('-')) {
+    // If it's an ISO date string (e.g., "2024-01-15T00:00:00.000Z")
+    if (dateStr.includes('T')) {
       const date = new Date(dateStr)
-      if (isNaN(date.getTime())) {
-        throw new Error('Invalid date')
-      }
       return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: '2-digit',
@@ -29,9 +21,26 @@ const formatDate = (dateStr: string) => {
       })
     }
     
-    // If we can't parse it, return the original string
-    console.error('Unparseable date:', dateStr)
+    // If it's in YYYYMMDD format
+    if (dateStr.match(/^\d{8}$/)) {
+      const year = dateStr.slice(0, 4)
+      const month = dateStr.slice(4, 6)
+      const day = dateStr.slice(6, 8)
+      return `${month}/${day}/${year}`
+    }
+
+    // If it has dashes (YYYY-MM-DD)
+    if (dateStr.includes('-')) {
+      const [year, month, day] = dateStr.split('-')
+      if (month && day) {
+        return `${month}/${day}/${year}`
+      }
+    }
+    
+    // If we can't parse it, return original
+    console.warn('Unparseable date:', dateStr)
     return dateStr
+    
   } catch (e) {
     console.error('Date parsing error:', e)
     return dateStr

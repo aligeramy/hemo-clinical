@@ -45,7 +45,42 @@ const technicalFields = [
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return ''
-  return `${dateStr.slice(0,4)}/${dateStr.slice(4,6)}/${dateStr.slice(6,8)}`
+  
+  try {
+    // If it's an ISO date string (e.g., "2024-01-15T00:00:00.000Z")
+    if (dateStr.includes('T')) {
+      const date = new Date(dateStr)
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      })
+    }
+    
+    // If it's in YYYYMMDD format
+    if (dateStr.match(/^\d{8}$/)) {
+      const year = dateStr.slice(0, 4)
+      const month = dateStr.slice(4, 6)
+      const day = dateStr.slice(6, 8)
+      return `${month}/${day}/${year}`
+    }
+
+    // If it has dashes (YYYY-MM-DD)
+    if (dateStr.includes('-')) {
+      const [year, month, day] = dateStr.split('-')
+      if (month && day) {
+        return `${month}/${day}/${year}`
+      }
+    }
+    
+    // If we can't parse it, return original
+    console.warn('Unparseable date:', dateStr)
+    return dateStr
+    
+  } catch (e) {
+    console.error('Date parsing error:', e)
+    return dateStr
+  }
 }
 
 const formatTime = (timeStr: string) => {
@@ -132,27 +167,29 @@ export function Sidebar({ patient }: SidebarProps) {
       "rounded-lg border bg-card transition-all duration-300 relative",
       isExpanded ? "w-full" : "w-[350px]"
     )}>
-     
       <div className="p-6">
         <ScrollArea className="h-[calc(100vh-10rem)]">
+          {/* Sticky Header */}
+          <div className="sticky top-0 bg-card z-10 pb-3 mb-3 border-b">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold tracking-tight px-2.5">Clinical Information</h3>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsExpanded(!isExpanded)}
+              >
+                {isExpanded ? (
+                  <ArrowRightFromLine className="h-4 w-4" />
+                ) : (
+                  <ArrowLeftFromLine className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+
           <div className="space-y-6">
             {/* Clinical Priority Information */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold tracking-tight px-2.5">Clinical Information</h3>
-                
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsExpanded(!isExpanded)}
-        >
-          {isExpanded ? (
-            <ArrowRightFromLine className="h-4 w-4" />
-          ) : (
-            <ArrowLeftFromLine className="h-4 w-4" />
-          )}
-        </Button>
-              </div>
               {renderFields(priorityFields, true)}
             </div>
             

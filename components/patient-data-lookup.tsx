@@ -44,6 +44,7 @@ export function PatientDataLookup() {
             isLoading={isLoading}
             error={error}
             onRowClick={handleRowClick}
+            selectedPatient={selectedPatient}
           />
         </div>
       </div>
