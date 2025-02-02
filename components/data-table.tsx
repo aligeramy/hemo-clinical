@@ -24,7 +24,7 @@ export function DataTable<TData>({
   onRowClick,
 }: DataTableProps<TData>) {
   const [currentPage, setCurrentPage] = useState(1)
-  const [selectedIndex, setSelectedIndex] = useState<number>(0)
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const itemsPerPage = 10
   const totalPages = Math.ceil(data.length / itemsPerPage)
   
@@ -40,7 +40,7 @@ export function DataTable<TData>({
         case 'ArrowUp':
           e.preventDefault()
           setSelectedIndex(prev => {
-            const newIndex = Math.max(0, prev - 1)
+            const newIndex = Math.max(0, prev as number - 1)
             if (newIndex < 0 && currentPage > 1) {
               setCurrentPage(prev => prev - 1)
               return itemsPerPage - 1
@@ -52,7 +52,7 @@ export function DataTable<TData>({
         case 'ArrowDown':
           e.preventDefault()
           setSelectedIndex(prev => {
-            const newIndex = Math.min(paginatedData.length - 1, prev + 1)
+            const newIndex = Math.min(paginatedData.length - 1, prev as number + 1)
             if (newIndex >= itemsPerPage && currentPage < totalPages) {
               setCurrentPage(prev => prev + 1)
               return 0
@@ -64,14 +64,14 @@ export function DataTable<TData>({
         case 'ArrowLeft':
           if (currentPage > 1) {
             setCurrentPage(prev => prev - 1)
-            setSelectedIndex(0)
+            setSelectedIndex(null)
           }
           break
           
         case 'ArrowRight':
           if (currentPage < totalPages) {
             setCurrentPage(prev => prev + 1)
-            setSelectedIndex(0)
+            setSelectedIndex(null)
           }
           break
       }
@@ -83,8 +83,8 @@ export function DataTable<TData>({
 
   // Update selected row when index changes
   useEffect(() => {
-    if (paginatedData[selectedIndex]) {
-      onRowClick(paginatedData[selectedIndex])
+    if (paginatedData[selectedIndex as number]) {
+      onRowClick(paginatedData[selectedIndex as number])
     }
   }, [selectedIndex, paginatedData, onRowClick])
 
@@ -148,10 +148,10 @@ export function DataTable<TData>({
   }
 
   return (
-    <div className="rounded-md border bg-background/80 backdrop-blur-lg text-sm">
+    <div className="rounded-md shadow-lg ring-1  ring-white/10 overflow-hidden bg-background/80 backdrop-blur-lg text-sm">
       <Table>
-        <TableHeader>
-          <TableRow className="bg-transparent hover:bg-transparent">
+        <TableHeader className="text-md ">
+          <TableRow className="bg-muted overflow-hidden hover:bg-transparent">
             {columns.map((column) => (
               <TableHead 
                 key={column.id}
@@ -171,9 +171,9 @@ export function DataTable<TData>({
                 onRowClick(row)
               }}
               className={cn(
-                "cursor-pointer transition-colors text-[13px]",
+                "cursor-pointer transition-all text-[13px]",
                 selectedIndex === index 
-                  ? "bg-neutral-900 text-white hover:bg-neutral-800" 
+                  ? "bg-black text-white hover:bg-black/80" 
                   : "hover:bg-neutral-100/50 dark:hover:bg-neutral-800/50",
                 "[&:last-child]:border-b-0"
               )}
@@ -191,7 +191,7 @@ export function DataTable<TData>({
         </TableBody>
       </Table>
       
-      <div className="flex items-center justify-between px-6 py-4 border-t">
+      <div className="flex items-center justify-between text-xs px-8 py-1 border-t">
         <div className="text-muted-foreground">
           Page {currentPage} of {totalPages}
         </div>
@@ -201,7 +201,7 @@ export function DataTable<TData>({
             size="sm"
             onClick={() => {
               setCurrentPage(1)
-              setSelectedIndex(0)
+              setSelectedIndex(null)
             }}
             disabled={currentPage === 1}
             className="rounded-lg"
@@ -213,7 +213,7 @@ export function DataTable<TData>({
             size="sm"
             onClick={() => {
               setCurrentPage(prev => Math.max(1, prev - 1))
-              setSelectedIndex(0)
+              setSelectedIndex(null)
             }}
             disabled={currentPage === 1}
             className="rounded-lg"
@@ -225,7 +225,7 @@ export function DataTable<TData>({
             size="sm"
             onClick={() => {
               setCurrentPage(prev => Math.min(totalPages, prev + 1))
-              setSelectedIndex(0)
+              setSelectedIndex(null)
             }}
             disabled={currentPage === totalPages}
             className="rounded-lg"
@@ -237,7 +237,7 @@ export function DataTable<TData>({
             size="sm"
             onClick={() => {
               setCurrentPage(totalPages)
-              setSelectedIndex(0)
+              setSelectedIndex(null)
             }}
             disabled={currentPage === totalPages}
             className="rounded-lg"

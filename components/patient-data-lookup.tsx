@@ -19,11 +19,16 @@ export function PatientDataLookup() {
     )
   )
 
+  const handleSearch = (value: string) => {
+    setSearchTerm(value)
+    setSelectedPatient(null)
+  }
+
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] gap-4 p-6">
+    <div className="flex gap-4 p-6 pb-0">
       <div className="flex-1 overflow-hidden">
         <div className="relative group">
-          <SearchBar value={searchTerm} onChange={setSearchTerm} />
+          <SearchBar value={searchTerm} onChange={handleSearch} />
         </div>
 
         <div className="border rounded-lg bg-background/90 backdrop-blur-sm shadow-sm">
